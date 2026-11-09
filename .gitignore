@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets: only .env.example is committed
+.env
+
+# Runtime data (never committed)
+cache/
+data/processed/
+data/indexes/
+storage/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

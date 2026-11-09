@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Files
+        run: python scripts/check_contribution_policy.py files
+      - name: Commits of the pull request
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_contribution_policy.py commits "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+      - name: Commits of the push
+        if: github.event_name == 'push'
+        run: |
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            git fetch origin main || true
+            RANGE="origin/main..${{ github.sha }}"
+            git rev-parse --verify -q origin/main >/dev/null || RANGE="${{ github.sha }}"
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          python scripts/check_contribution_policy.py commits "$RANGE"
+      - name: Pull request title and description
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python scripts/check_contribution_policy.py pr
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conventional Commits title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$TITLE" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .+' \
+            || { echo "PR title must follow Conventional Commits, e.g. 'feat(retrieval): add RRF fusion'"; exit 1; }
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "ruff>=0.5" "black>=24.4"
+      - run: ruff check .
+      - run: black --check .
+
+  types:
+    name: types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: mypy
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: rag
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports: ["6333:6333"]
+    env:
+      POSTGRES_PASSWORD: ci-password
+      JWT_SECRET: ci-jwt-secret
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: ci-admin-password
+      LEAK_HMAC_KEY: ci-leak-key
+      LEAK_API_TOKEN: ci-leak-token
+      ALLOW_CLOUD_LLM: "false"
+      CI_POSTGRES_URL: postgresql://postgres:ci-password@localhost:5432/rag
+      CI_QDRANT_URL: http://localhost:6333
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest --cov=src --cov-report=term-missing
+
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

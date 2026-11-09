@@ -1,0 +1,35 @@
+# Install once per clone:  pre-commit install
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=20000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: contribution-policy-files
+        name: contribution policy (files)
+        entry: python scripts/check_contribution_policy.py files
+        language: system
+        pass_filenames: true
+      - id: contribution-policy-message
+        name: contribution policy (commit message)
+        entry: python scripts/check_contribution_policy.py msg
+        language: system
+        stages: [commit-msg]

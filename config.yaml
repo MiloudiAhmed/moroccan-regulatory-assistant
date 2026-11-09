@@ -1,0 +1,84 @@
+# Every key is described in docs/specs/00-shared.md §10. Secrets go in .env, never here.
+mode: local                 # local | light | cloud
+fakes:
+  data_dir: data/processed  # where file-based fakes write (tests use a temporary folder)
+contracts:                  # fake | real, per contract
+  retrieval: fake
+  ingestion: fake
+  document_rights: fake
+  audit: fake
+  llm: fake
+  ocr: fake
+  leak_index: fake
+  web_search: fake
+  web_agent: fake
+  models: fake
+  orchestrator: fake
+  writer: fake
+  narrator: fake
+llm:
+  model: qwen2.5:7b
+  model_light: qwen2.5:3b
+  narration_model: qwen2.5:1.5b
+  num_ctx: 16384             # Ollama context window, passed as options.num_ctx
+  base_url: http://llm:11434
+models:
+  base_url: http://models:8080
+  embedding: BAAI/bge-m3
+  reranker: BAAI/bge-reranker-v2-m3
+retrieval:
+  qdrant_url: http://qdrant:6333
+  collection: chunks
+  embed_batch_size: 32
+  top_k_vector: 30
+  top_k_bm25: 30
+  rrf_k: 60
+  top_k_final: 10             # default top_k of search()
+  rerank_top_n: 20            # fused chunks sent to the re-ranker; also the maximum top_k
+agents:
+  max_iterations: 3           # searches per sub-question
+  max_sub_questions: 3
+  max_tokens_per_request: 8000  # P3's own LLM calls (plan, grade, reformulate)
+  grade_top_n: 5              # passages graded per search
+  min_relevant: 1             # relevant passages for a sub-question to count as answered
+  max_passages_to_writer: 8
+  max_question_chars: 1000
+  request_timeout_s: 60
+  confidence_unknown_below: 0.4
+answer:
+  max_answer_tokens: 800
+  max_judge_tokens: 600
+  min_excerpt_chars: 10
+  web_confidence_cap: 0.5     # answers citing only web sources
+  narration_max_tokens: 60
+web:
+  enabled: true               # global switch (e.g. off for the offline demo); per-role switch is roles.web_enabled
+  base_url: http://web-search:8090
+  max_results: 5
+  max_query_words: 12
+  max_snippet_chars: 500
+  timeout_s: 5
+leak:
+  ngram: 4
+  overlap_threshold: 0.2      # starting value, tuned on the leak tests
+  min_hits: 3
+  max_df: 20
+ocr:
+  base_url: http://ocr:8070
+  max_pages_upload: 50
+auth:
+  token_minutes: 60
+  max_failed_logins: 5
+  lockout_minutes: 15
+  min_password_length: 8
+  max_pending_requests: 50    # POST /auth/account-requests answers 429 once this many are pending
+ui:
+  api_base_url: http://api:8000   # the ui service also reads agents.max_question_chars and auth.min_password_length
+uploads:
+  max_bytes: 20000000         # 20 MB per file
+ingestion:
+  strategy: article           # article | fixed
+  max_chunk_chars: 2000
+  overlap_chars: 200
+  min_letters_per_page: 50
+  ocr_min_confidence: 0.6
