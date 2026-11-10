@@ -40,14 +40,16 @@ MUST = required for validation. SHOULD = expected, can be cut if time runs out.
 - **P5-03** MUST provide `src/core/logging.py`: JSON logs on stdout, every line with `timestamp`, `level`, `request_id`, `event` and extra fields.
 - **P5-04** MUST provide `src/core/config.py`: loads `.env` (secrets) and `config.yaml` (everything else) once, exposed as a typed `cfg` object (Pydantic settings). It refuses to start when `retrieval.top_k_final > retrieval.rerank_top_n`.
 - **P5-05** MUST register one exception handler that turns any `AppError` into `{"code", "message"}` with its `http_status` (00-shared §7), and any other exception into `500 {"code": "internal_error"}` without details.
-- **P5-06** MUST expose `GET /health` and allow CORS from the `ui` origin only.
+- **P5-06** MUST expose `GET /health` and allow no cross-origin requests (no CORS headers): the browser reaches the API only through the `ui` service, which forwards `/api/…` to `api:8000` (P7-01).
 - **P5-07** MUST provide `src/core/contracts/registry.py` with every `get_*` function of 00-shared §9, each reading `cfg.contracts.<name>`, returning one cached instance per process, plus `override(name, instance)` and `reset()` for tests (00-shared §9).
 - **P5-08** MUST provide the user fixtures in `tests/conftest.py`: `lecteur_ctx`, `editeur_ctx`, `admin_ctx`, `other_lecteur_ctx`, each with a **fixed** `user_id` written in the file (P1's sample chunks use `lecteur_ctx`'s as an owner).
 
 ### 3.2 Database
 
 - **P5-09** MUST implement the eight tables of architecture §12 exactly (`roles`, `users`, `documents`, `document_roles`, `audit_log`, `account_requests`, `conversations`, `conversation_messages`) as SQLAlchemy models in `src/core/db/models.py`, with Alembic migrations in `src/core/db/migrations/`.
+- **P5-09b** MUST connect to PostgreSQL with `cfg.database` (`host`, `port`, `name`, `user`) and `POSTGRES_PASSWORD` from `.env`. In CI, tests use `CI_POSTGRES_URL` instead.
 - **P5-10** MUST be the only part that writes migrations. Another part needing a column asks P5.
+- **P5-10b** MUST apply the migrations (`alembic upgrade head`) when `api` starts, before P5-12 and P5-12b and before serving any request, so a fresh `docker compose up` creates the tables. P5's tests apply them the same way on CI's database. `migrations/env.py` builds the database URL from `cfg.database` and `POSTGRES_PASSWORD` (P5-09b); `alembic.ini` holds no URL or password.
 - **P5-11** MUST seed, in a migration, the three rows of `roles` (`admin`, `editeur`, `lecteur`) with a description and `web_enabled = true`.
 - **P5-12** MUST create the first admin at startup from `ADMIN_USERNAME` / `ADMIN_PASSWORD` in `.env` if no admin exists.
 - **P5-12b** MUST, at startup, set every document still `received`, `extracting` or `chunked` to `failed` with error `"interrupted"`: its background ingestion died with the previous process. The user can then delete it and upload it again.

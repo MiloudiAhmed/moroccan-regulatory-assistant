@@ -33,10 +33,12 @@ MUST = required for validation. SHOULD = expected, can be cut if time runs out.
 ### 3.1 Infrastructure
 
 - **P6-01** MUST provide `docker-compose.yml` with the services of architecture §5: `api`, `ui`, `postgres`, `qdrant`, `llm` (Ollama), `models`, `ocr`, `web-search`, `searxng`, and `cloud-gateway` (profile `cloud` only). `config.yaml` is mounted read-only into `api`, `ui` and `web-search`.
+- **P6-01b** MUST configure the `postgres` service so it creates the database `database.name` owned by `database.user` (`POSTGRES_DB`, `POSTGRES_USER` from those `config.yaml` values, `POSTGRES_PASSWORD` from `.env`), on the `internal` network only, with its data in the volume `pg_data`.
+- **P6-01c** MUST give `api` the named volumes `uploads` (`storage/uploads`), `extract_cache` (`cache/extracted`) and `indexes` (`data/indexes`), and mount `data/raw` read-only, so uploads, the extraction cache and the corpus survive a rebuild.
 - **P6-02** MUST declare three networks: `internal` with `internal: true`; `front`, a bridge with IP masquerade turned off (`com.docker.network.bridge.enable_ip_masquerade: "false"`), reachable from the host but with no route to the internet; and `egress`. `api` and `ui` are on `internal` + `front` and publish their ports there. Only `web-search`, `searxng` and `cloud-gateway` are attached to `egress`. Every other service is on `internal` only. Checked on day 2.
 - **P6-03** MUST provide the profiles `local` (default), `light` and `cloud`, selected by `mode` in `config.yaml` and the matching compose profile.
 - **P6-04** MUST provide `make models`, which downloads every model (LLMs, the Qwen tokenizer files, bge-m3, bge-reranker-v2-m3, OCR model) into Docker volumes. After it has run once, `docker compose up` MUST work with no internet access.
-- **P6-05** MUST provide `make up`, `make up-light`, `make down`, `make test-isolation`. Each target is one line in the `Makefile` and is documented in `README.md`.
+- **P6-05** MUST provide `make up`, `make up-light`, `make down`, `make test-isolation`, and `make seed` (runs P1's `seed` inside `api`, P1-33). Each target is one line in the `Makefile` and is documented in `README.md`.
 - **P6-06** SHOULD give every service a health check, and make `api` wait for `postgres`, `qdrant`, `llm` and `models` to be healthy.
 - **P6-07** SHOULD measure RAM, GPU use and latency of `local` and `light`, and of the narration model at 1.5B and 0.5B, on the demo machine, plus the end-to-end time of a simple question (target: under 10 s on average), and write the results in `docs/hardware.md`. The narration model starts at `qwen2.5:1.5b`; if it slows the answer down on the demo machine, P6 switches `llm.narration_model` to `qwen2.5:0.5b` (a config change only).
 
@@ -81,7 +83,7 @@ MUST = required for validation. SHOULD = expected, can be cut if time runs out.
   3. each 4-gram → `HMAC-SHA256(LEAK_HMAC_KEY, " ".join(gram))`, first 16 hex characters.
 - **P6-30** SHOULD also fingerprint **references** in the text: matches of `(رقم|عدد)((?: \d+)+)` found in the **normalized** text, e.g. `دورية رقم 12/2025` → normalized `رقم 12 2025` (normalization turns `١٢` into `12` and `/` into a space), stored with a `ref:` prefix before hashing.
 - **P6-31** MUST implement `LeakIndex` (00-shared §6.4): `register` stores the document's fingerprints with `blocking = True`; `set_blocking` changes the flag; `delete` removes the document's fingerprints. All three are idempotent.
-- **P6-32** MUST store, per fingerprint, the set of `doc_id`s that contain it and whether each one is blocking, in a file-backed store on the `web-search` volume (SQLite).
+- **P6-32** MUST store, per fingerprint, the set of `doc_id`s that contain it and whether each one is blocking, in a file-backed store (SQLite) on the volume `leak_data` of `web-search`, so the index survives a restart: an empty index would let every query through.
 - **P6-33** MUST count a fingerprint as a **hit** only if it belongs to at least one blocking document **and** to no non-blocking (public) document, and SHOULD also require that it appears in fewer than `leak.max_df` documents. Phrases found in public law (or in many documents) never block.
 - **P6-34** MUST block a query if `hits >= leak.min_hits` **or** `hits / number_of_query_4grams >= leak.overlap_threshold`, **or** it contains any reference hit.
 - **P6-35** MUST read `LEAK_HMAC_KEY` from `.env`, shared by `api` and `web-search`, and never committed.
