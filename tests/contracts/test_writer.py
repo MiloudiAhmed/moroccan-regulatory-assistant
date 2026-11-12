@@ -96,9 +96,7 @@ def test_t16_emits_one_verify_event_for_available_source(
     )
 
 
-def test_fake_writer_cites_first_passage(
-    reader_ctx: UserContext, sample_chunks
-) -> None:
+def test_fake_writer_cites_first_passage(reader_ctx: UserContext, sample_chunks) -> None:
     from src.core.contracts import Passage  # noqa: PLC0415
 
     first = Passage(chunk=sample_chunks[0], score=1.0, rank=1)

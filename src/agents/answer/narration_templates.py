@@ -80,11 +80,7 @@ def render_template(event: ProcessEvent, language: str) -> str:
                 if language == "fr"
                 else "تم إيقاف البحث عبر الويب بناءً على اختيارك."
             )
-        return (
-            "Recherche web non effectuée."
-            if language == "fr"
-            else "لم يُجرَ البحث عبر الويب."
-        )
+        return "Recherche web non effectuée." if language == "fr" else "لم يُجرَ البحث عبر الويب."
 
     if step == "write":
         return "Je rédige la réponse." if language == "fr" else "أُعدّ الإجابة."

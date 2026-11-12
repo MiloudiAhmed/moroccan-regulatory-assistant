@@ -31,7 +31,12 @@ def _process_event(step: StepType) -> ProcessEvent:
 
 def _template_narrator():
     """Use the real deterministic narrator once P4 implements it."""
-    module = importlib.import_module("src.agents.answer.narrator")
+    try:
+        module = importlib.import_module("src.agents.answer.narrator")
+    except ModuleNotFoundError as exc:
+        if exc.name != "src.agents.answer.narrator":
+            raise
+        pytest.skip("TemplateNarrator does not exist yet")
     narrator_type = getattr(module, "TemplateNarrator", None)
     if narrator_type is None:
         pytest.skip("TemplateNarrator does not exist yet")

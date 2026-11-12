@@ -71,11 +71,7 @@ class FakeWriter(Writer):
                 date=None,
                 excerpt=result.snippet,
             )
-            body = (
-                "Résultat web de test [1]."
-                if language == "fr"
-                else "نتيجة ويب للاختبار [1]."
-            )
+            body = "Résultat web de test [1]." if language == "fr" else "نتيجة ويب للاختبار [1]."
             text = f"{WEB_ONLY[language]}\n{body}"
             confidence = 0.5
 
