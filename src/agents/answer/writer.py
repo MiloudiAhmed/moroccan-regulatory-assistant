@@ -182,9 +182,7 @@ class RealWriter(Writer):
             confidence = round(len(kept) / len(claims), 2)
             all_web = all(citation.url is not None for citation in citations)
             if all_web:
-                confidence = min(
-                    confidence, float(setting("answer", "web_confidence_cap", 0.5))
-                )
+                confidence = min(confidence, float(setting("answer", "web_confidence_cap", 0.5)))
             if confidence < float(setting("agents", "confidence_unknown_below", 0.4)):
                 return finish(_unknown(language))
 
